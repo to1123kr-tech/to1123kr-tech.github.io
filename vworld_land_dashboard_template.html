@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>브이월드 토지이용 통합 뷰어 템플릿</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#121b2d; --panel2:#17233a; --line:#263552; --text:#e9f1ff; --muted:#9fb1d1;
+      --accent:#4ea1ff; --accent2:#6ee7b7; --warn:#ffc857; --danger:#ff7a7a;
+      --shadow:0 12px 30px rgba(0,0,0,.28);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Segoe UI,Apple SD Gothic Neo,Malgun Gothic,sans-serif;background:linear-gradient(180deg,#09101c 0%,#0f1727 100%);color:var(--text)}
+    .app{display:grid;grid-template-columns:420px 1fr;gap:16px;height:100vh;padding:16px}
+    .panel{background:rgba(18,27,45,.94);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .sidebar{display:flex;flex-direction:column;overflow:hidden}
+    .section{padding:18px 18px 0 18px}
+    .header{padding:22px 20px 16px 20px;border-bottom:1px solid var(--line)}
+    .title{font-size:24px;font-weight:800;letter-spacing:-0.4px;margin:0 0 6px}
+    .subtitle{font-size:13px;color:var(--muted);line-height:1.5;margin:0}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    label{display:block;font-size:12px;font-weight:700;color:#bfd0f2;margin:0 0 8px}
+    input,select,button,textarea{font:inherit}
+    input[type="text"],input[type="password"],textarea{width:100%;background:#0d1628;border:1px solid #2c3e62;color:var(--text);border-radius:14px;padding:13px 14px;outline:none}
+    textarea{min-height:72px;resize:vertical}
+    input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(78,161,255,.15)}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{border:none;border-radius:14px;padding:13px 16px;font-weight:700;cursor:pointer;transition:.2s transform,.2s opacity,.2s background}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:linear-gradient(135deg,#3795ff,#62b0ff);color:white}
+    .btn-secondary{background:#1a2944;color:#d8e6ff;border:1px solid #314564}
+    .btn-soft{background:#12203a;color:#b8cdf4;border:1px dashed #3a537c}
+    .tagbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .tag{padding:8px 10px;border-radius:999px;font-size:12px;font-weight:700;background:#13213a;color:#bfd4ff;border:1px solid #314360}
+    .card{background:linear-gradient(180deg,rgba(25,38,62,.95),rgba(19,31,51,.95));border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 18px 0 18px}
+    .card h3{margin:0 0 12px;font-size:16px}
+    .kv{display:grid;grid-template-columns:92px 1fr;gap:8px 10px;font-size:13px;line-height:1.5}
+    .kv div:nth-child(odd){color:#a5badf;font-weight:700}
+    .info-list{display:grid;gap:10px}
+    .pill{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:#0e1b31;color:#d7e7ff;border:1px solid #2b4165;font-size:12px;font-weight:700}
+    .ok{color:#8ff0c1}.warn{color:#ffd37d}.bad{color:#ff9e9e}
+    .checklist{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .checkitem{display:flex;align-items:center;gap:10px;background:#0f1a2e;border:1px solid #2a3c5e;padding:12px;border-radius:14px}
+    .checkitem input{accent-color:#5aa7ff;width:16px;height:16px}
+    .map-wrap{position:relative;overflow:hidden}
+    #map{height:100%;width:100%;border-radius:var(--radius)}
+    .map-toolbar{position:absolute;left:18px;top:18px;z-index:1000;display:flex;gap:10px;flex-wrap:wrap;max-width:calc(100% - 36px)}
+    .float-card{background:rgba(15,24,40,.92);border:1px solid #2b4165;border-radius:16px;padding:12px 14px;box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+    .float-card strong{display:block;font-size:13px;margin-bottom:6px}
+    .float-card small{display:block;color:#b8c8e3;line-height:1.5}
+    .legend{position:absolute;right:18px;bottom:18px;z-index:1000;min-width:250px}
+    .legend-row{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:12px;color:#dce8ff;margin-top:8px}
+    .sw{width:34px;height:10px;border-radius:999px;display:inline-block}
+    .footer-note{padding:18px;color:#9ab0d9;font-size:12px;line-height:1.6}
+    .mono{font-family:Consolas,monospace}
+    .status{margin:14px 18px 0;padding:12px 14px;border-radius:14px;background:#101c30;border:1px solid #30415f;font-size:13px;color:#d7e6ff;min-height:46px}
+    .muted{color:var(--muted)}
+    .small{font-size:12px}
+    @media (max-width: 1100px){
+      .app{grid-template-columns:1fr;grid-template-rows:auto 70vh;height:auto;min-height:100vh}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel sidebar">
+      <div class="header">
+        <h1 class="title">브이월드 토지이용 통합 뷰어</h1>
+        <p class="subtitle">지번 검색 → 위치 이동 → 연속지적도 / 용도지역 / 공시지가 / 토지이용 확인용 화면 틀</p>
+        <div class="tagbar">
+          <span class="tag">토지 검토용</span>
+          <span class="tag">현장 확인용</span>
+          <span class="tag">브이월드 연동형</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="grid2">
+          <div>
+            <label for="apiKey">브이월드 API Key</label>
+            <input id="apiKey" type="password" placeholder="여기에 키 입력" />
+          </div>
+          <div>
+            <label for="domain">등록 도메인</label>
+            <input id="domain" type="text" placeholder="localhost 또는 내 도메인" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <label for="parcelInput">지번 검색</label>
+        <input id="parcelInput" type="text" placeholder="예: 경기도 화성시 향남읍 123-4" />
+        <div class="actions" style="margin-top:10px">
+          <button class="btn btn-primary" id="searchBtn">지번 검색</button>
+          <button class="btn btn-secondary" id="sampleBtn">샘플 입력</button>
+          <button class="btn btn-soft" id="resetBtn">초기화</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>표시 레이어</h3>
+        <div class="checklist">
+          <label class="checkitem"><input type="checkbox" id="toggleCadastral" checked> <span>연속지적도</span></label>
+          <label class="checkitem"><input type="checkbox" id="toggleLandUse" checked> <span>용도지역</span></label>
+          <label class="checkitem"><input type="checkbox" id="togglePrice" checked> <span>공시지가</span></label>
+          <label class="checkitem"><input type="checkbox" id="toggleInfoPanel" checked> <span>우측 정보패널</span></label>
+        </div>
+      </div>
+
+      <div class="status" id="statusBox">대기 중: 지번을 입력하고 <b>지번 검색</b>을 누르세요.</div>
+
+      <div class="card">
+        <h3>선택 필지 요약</h3>
+        <div class="kv">
+          <div>검색어</div><div id="kvKeyword">-</div>
+          <div>좌표</div><div id="kvCoord">-</div>
+          <div>주소</div><div id="kvAddress">-</div>
+          <div>지목/지번</div><div id="kvJibun">-</div>
+          <div>PNU</div><div id="kvPnu" class="mono">-</div>
+          <div>공시지가</div><div id="kvPrice">-</div>
+          <div>용도지역</div><div id="kvUse">-</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>토지이용 체크 포인트</h3>
+        <div class="info-list small muted">
+          <div>• 지번 검색 후 중심 위치로 이동</div>
+          <div>• 필지 경계는 화면상 검토용으로 확인</div>
+          <div>• 용도지역/지구는 추후 실제 WMS 레이어명 연결 가능</div>
+          <div>• 공시지가는 연속지적도 응답의 <span class="mono">jiga</span> 값을 우선 표시</div>
+          <div>• 최종 행정 판단은 토지이음·공식 대장으로 재확인</div>
+        </div>
+      </div>
+
+      <div class="footer-note">
+        이 파일은 <b>화면 틀 + 기본 동작용 템플릿</b>입니다. 브이월드 인증키와 도메인을 넣으면 지번 검색과 필지 정보 조회를 붙일 수 있게 구성했습니다.
+      </div>
+    </aside>
+
+    <main class="panel map-wrap">
+      <div id="map"></div>
+      <div class="map-toolbar">
+        <div class="float-card">
+          <strong>한눈에 보기</strong>
+          <small>지번 검색 후 현재 위치를 중심으로 필지 확인용 UI입니다.</small>
+        </div>
+        <div class="float-card" id="runtimeCard">
+          <strong>실행 상태</strong>
+          <small>기본 배경지도 로딩 완료</small>
+        </div>
+      </div>
+      <div class="float-card legend" id="infoPanel">
+        <strong>정보 범례</strong>
+        <div class="legend-row"><span>연속지적도 경계</span><span class="sw" style="background:#35c1ff"></span></div>
+        <div class="legend-row"><span>검색 위치 마커</span><span class="sw" style="background:#ff7a7a"></span></div>
+        <div class="legend-row"><span>용도지역/공시지가</span><span class="sw" style="background:#6ee7b7"></span></div>
+        <div class="legend-row"><span>비고</span><span>실제 업무 전 공식 자료 재확인</span></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const map = L.map('map', { zoomControl: true }).setView([36.5, 127.9], 7);
+    const base = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marker = null;
+    let parcelLayer = null;
+
+    const els = {
+      apiKey: document.getElementById('apiKey'),
+      domain: document.getElementById('domain'),
+      parcelInput: document.getElementById('parcelInput'),
+      searchBtn: document.getElementById('searchBtn'),
+      sampleBtn: document.getElementById('sampleBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      statusBox: document.getElementById('statusBox'),
+      runtimeCard: document.getElementById('runtimeCard'),
+      toggleInfoPanel: document.getElementById('toggleInfoPanel'),
+      infoPanel: document.getElementById('infoPanel'),
+      kvKeyword: document.getElementById('kvKeyword'),
+      kvCoord: document.getElementById('kvCoord'),
+      kvAddress: document.getElementById('kvAddress'),
+      kvJibun: document.getElementById('kvJibun'),
+      kvPnu: document.getElementById('kvPnu'),
+      kvPrice: document.getElementById('kvPrice'),
+      kvUse: document.getElementById('kvUse')
+    };
+
+    document.getElementById('sampleBtn').addEventListener('click', () => {
+      els.parcelInput.value = '경기도 화성시 향남읍 123-4';
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      els.parcelInput.value = '';
+      els.apiKey.value = '';
+      els.domain.value = '';
+      updateSummary({});
+      setStatus('초기화 완료', '입력값이 모두 비워졌습니다.');
+      if (marker) map.removeLayer(marker);
+      if (parcelLayer) map.removeLayer(parcelLayer);
+      map.setView([36.5, 127.9], 7);
+    });
+
+    els.toggleInfoPanel.addEventListener('change', (e) => {
+      els.infoPanel.style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    els.searchBtn.addEventListener('click', runSearch);
+    els.parcelInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runSearch();
+    });
+
+    function setStatus(title, detail, tone='ok') {
+      const cls = tone === 'warn' ? 'warn' : tone === 'bad' ? 'bad' : 'ok';
+      els.statusBox.innerHTML = `<span class="pill ${cls}">${title}</span> <span style="margin-left:8px">${detail}</span>`;
+      els.runtimeCard.innerHTML = `<strong>실행 상태</strong><small>${detail}</small>`;
+    }
+
+    function updateSummary(data) {
+      els.kvKeyword.textContent = data.keyword || '-';
+      els.kvCoord.textContent = data.coord || '-';
+      els.kvAddress.textContent = data.address || '-';
+      els.kvJibun.textContent = data.jibun || '-';
+      els.kvPnu.textContent = data.pnu || '-';
+      els.kvPrice.textContent = data.price || '연결 전';
+      els.kvUse.textContent = data.use || '레이어 연결 전';
+    }
+
+    async function runSearch() {
+      const key = els.apiKey.value.trim();
+      const domain = els.domain.value.trim();
+      const keyword = els.parcelInput.value.trim();
+
+      if (!keyword) {
+        setStatus('입력 필요', '지번을 먼저 입력하세요.', 'warn');
+        return;
+      }
+      if (!key) {
+        updateSummary({ keyword });
+        setStatus('템플릿 모드', 'API Key가 없어 실제 브이월드 조회는 하지 않고 화면 틀만 확인합니다.', 'warn');
+        return;
+      }
+
+      try {
+        setStatus('조회 중', '브이월드 지번 좌표를 조회하고 있습니다...');
+        const geoUrl = new URL('https://api.vworld.kr/req/address');
+        geoUrl.search = new URLSearchParams({
+          service: 'address',
+          request: 'getcoord',
+          version: '2.0',
+          crs: 'epsg:4326',
+          format: 'json',
+          type: 'PARCEL',
+          address: keyword,
+          key
+        }).toString();
+
+        const geoRes = await fetch(geoUrl);
+        const geoJson = await geoRes.json();
+        const geoItem = geoJson?.response?.result?.items?.[0] || geoJson?.result?.item?.[0] || geoJson?.result?.item || null;
+        if (!geoItem) throw new Error('지번 검색 결과가 없습니다.');
+
+        const x = Number(geoItem.point?.x || geoItem.x);
+        const y = Number(geoItem.point?.y || geoItem.y);
+        const pnu = geoItem?.structure?.level4LC ? null : (geoItem.pnu || null);
+        const addrText = geoItem?.text || keyword;
+
+        if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('좌표 변환 결과가 올바르지 않습니다.');
+
+        map.setView([y, x], 18);
+        if (marker) map.removeLayer(marker);
+        marker = L.circleMarker([y, x], {
+          radius: 10, color: '#ff7a7a', fillColor: '#ff7a7a', fillOpacity: 0.85, weight: 2
+        }).addTo(map).bindPopup(`<b>${addrText}</b><br>${x.toFixed(6)}, ${y.toFixed(6)}`).openPopup();
+
+        let parcelInfo = null;
+        if (document.getElementById('toggleCadastral').checked) {
+          parcelInfo = await fetchParcelByPnu({ key, domain, pnu });
+        }
+
+        updateSummary({
+          keyword,
+          coord: `${x.toFixed(6)}, ${y.toFixed(6)}`,
+          address: addrText,
+          jibun: parcelInfo?.jibun || '조회 전',
+          pnu: parcelInfo?.pnu || pnu || '미확인',
+          price: parcelInfo?.jiga ? `${Number(parcelInfo.jiga).toLocaleString()} 원` : '연결 전',
+          use: document.getElementById('toggleLandUse').checked ? '용도지역 WMS 연결 대상' : '표시 안 함'
+        });
+
+        setStatus('조회 완료', '지번 검색 위치로 이동했습니다. 연속지적도는 가능 시 함께 불러옵니다.');
+      } catch (err) {
+        console.error(err);
+        setStatus('조회 실패', err.message || '오류가 발생했습니다.', 'bad');
+      }
+    }
+
+    async function fetchParcelByPnu({ key, domain, pnu }) {
+      if (!pnu) return null;
+      const url = new URL('https://api.vworld.kr/req/data');
+      const params = {
+        service: 'data',
+        request: 'GetFeature',
+        version: '2.0',
+        data: 'LP_PA_CBND_BUBUN',
+        key,
+        format: 'json',
+        size: '1',
+        geomFilter: '',
+        attrFilter: `pnu:=:${pnu}`
+      };
+      if (domain) params.domain = domain;
+      url.search = new URLSearchParams(params).toString();
+
+      const res = await fetch(url);
+      const json = await res.json();
+      const feature = json?.response?.result?.featureCollection?.features?.[0];
+      if (!feature) return null;
+
+      if (parcelLayer) map.removeLayer(parcelLayer);
+      parcelLayer = L.geoJSON(feature, {
+        style: {
+          color: '#35c1ff', weight: 3, fillColor: '#35c1ff', fillOpacity: 0.08
+        }
+      }).addTo(map);
+      try { map.fitBounds(parcelLayer.getBounds(), { padding: [30, 30] }); } catch {}
+
+      const prop = feature.properties || {};
+      return {
+        pnu: prop.pnu,
+        jibun: prop.jibun || prop.addr || '-',
+        jiga: prop.jiga
+      };
+    }
+  </script>
+</body>
+</html>
